@@ -1,0 +1,158 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+Instalamos librerias
+
+```{r}
+library(stringr)
+library(magrittr)
+library(rio)
+library(cluster)
+library(plyr) # para funcion "each"
+library(psych) #para hacer tablas comparadas
+library(knitr) #para generar tablas html
+library(kableExtra) #para generar tablas html
+library(factoextra) #visualizaciÃÂÃÂÃÂÃÂÃÂÃÂÃÂÃÂ³n de clusters
+library(ggrepel) #para que las etiquetas de los graficos no se superpongan
+library(htmltab)
+library(dplyr)
+library(dbscan) #para metodo de densidad
+library(fpc) #para obtener clusters por densidad
+library(polycor) #para calcular matriz de correlacion (EFA)
+library(ggcorrplot) #para evaluar correlaciones (EFA)
+library(matrixcalc) # para verificar matriz de correlaciones (EFA)
+library(GPArotation) #Para redimensionar variables latentes (EFA)
+library(plotly) #Posibles valores proyectados (EFA)
+library(BBmisc) #Para buscar relaciones (EFA)
+```
+
+
+Importamos los datos y realizamos el subset
+
+```{r}
+data = import("https://github.com/orlando-20181209/Entrega-1/raw/master/BaseFinalNA.csv")
+names(data)
+
+subdata = data[,-c(1,2)]
+subdata = na.omit(subdata)
+```
+
+## 1) MATRIZ DE CORRELACIONES
+
+```{r}
+matriz<-hetcor(subdata)
+matriz_corr<- matriz$correlations
+```
+
+# a. Sin evaluar significancia
+
+```{r}
+ggcorrplot(matriz_corr)
+```
+
+# b. Evaluando significancia
+
+```{r}
+ggcorrplot(matriz_corr,
+           p.mat = cor_pmat(matriz_corr),
+           insig = "blank")
+```
+
+## 2) DIAGNOSTICO DE LA MATRIZ DE CORRELACIONES
+
+# a. Test KMO
+
+```{r}
+KMO(matriz_corr) 
+```
+
+# b. Test de Barlett
+
+```{r}
+cortest.bartlett(matriz_corr,n=nrow(subdata))$p.value>0.05
+```
+
+#c. Test for Singular Square Matrix
+
+```{r}
+is.singular.matrix(matriz_corr)
+```
+
+## 3) IDENTIFICAMOS EL NUMERO DE FACTORES
+
+Presentamos al grafico
+
+```{r}
+fa.parallel(subdata, fm = 'ML', fa = 'fa')
+```
+
+Solicitamos el numero de factores
+
+```{r}
+factorial <- fa(subdata,nfactors = 4,cor = 'mixed',rotate = "varimax",fm="minres")
+```
+
+## 4) VISUALIZAMOS EL EFA SOLICITADO
+
+# a. Resultado inicial
+
+```{r}
+print(factorial$loadings)
+```
+
+# b. Resultado mejorado
+
+```{r}
+print(factorial$loadings,cutoff = 0.5)
+```
+
+Visualizamos las variables y su relación con las variables latentes creados
+
+```{r}
+fa.diagram(factorial)
+```
+
+## 5) EVALUAMOS EL EFA
+
+# a. Raiz del error cuadrado
+
+```{r}
+factorial$crms
+```
+
+# b. Raiz del error cuadratico medio de aproximacion
+
+```{r}
+factorial$RMSEA
+```
+
+# c. Indice de Tucker-Lewis
+
+```{r}
+factorial$TLI
+```
+
+# d. Variables que aportan mas a los factores
+
+```{r}
+sort(factorial$communality)
+```
+
+# d. Variables que contribuyen a mas de un factor
+
+```{r}
+sort(factorial$complexity)
+```
+
+## 6) POSIBLES VALORES PROYECTADOS
+
+```{r}
+factorial_casos<-as.data.frame(factorial$scores)
+head(factorial_casos)
+summary(factorial_casos)
+```
+
